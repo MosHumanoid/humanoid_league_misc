@@ -189,8 +189,7 @@ class TransformBall(object):
                 points.append([transformed.x, transformed.y, transformed.z])
         pc_header = msg.header
         pc_header.frame_id = self.publish_frame
-        self.line_relative_pc_pub.publish(pc2.create_cloud_xyz32(pc_header, points))
-
+        self.non_line_field_points_pub.publish(pc2.create_cloud_xyz32(pc_header, points))
 
     def _callback_goal(self, msg):
         if self.camera_info is None:
