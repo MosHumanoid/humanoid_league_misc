@@ -19,3 +19,6 @@ transformer:
 
   camera_info:
     camera_info_topic: '/camera/camera_info'
+
+  non_line_field_points:
+    non_line_field_points_topic: '/non_line_in_image'

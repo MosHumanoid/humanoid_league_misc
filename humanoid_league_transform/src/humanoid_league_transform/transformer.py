@@ -42,7 +42,11 @@ class TransformBall(object):
                          self._callback_camera_info,
                          queue_size=1)
 
-        self.marker_pub = rospy.Publisher("ballpoint", Marker, queue_size=1)
+        rospy.Subscriber(rospy.get_param("transformer/non_line_field_points/non_line_field_points_topic", "/non_line_in_image"),
+                         LineInformationInImage,
+                         self._callback_non_line_field_points,
+                         queue_size=1)
+
         self.ball_relative_pub = rospy.Publisher("ball_relative", BallRelative, queue_size=1)
         if rospy.get_param("transformer/lines/lines_relative", True):
             self.line_relative_pub = rospy.Publisher("line_relative", LineInformationRelative, queue_size=1)
@@ -50,6 +54,7 @@ class TransformBall(object):
             self.line_relative_pc_pub = rospy.Publisher("line_relative_pc", PointCloud2, queue_size=1)
         self.goal_relative_pub = rospy.Publisher("goal_relative", GoalRelative, queue_size=1)
         self.obstacle_relative_pub = rospy.Publisher("obstacles_relative", ObstaclesRelative, queue_size=1)
+        self.non_line_field_points_pub = rospy.Publisher("non_line_field_points_relative", PointCloud2, queue_size=1)
 
         self.camera_info = None
 
@@ -63,7 +68,10 @@ class TransformBall(object):
         rospy.spin()
 
     def _callback_camera_info(self, camera_info):
-        self.camera_info = camera_info
+        if camera_info.K[0] != 0:
+            self.camera_info = camera_info
+        else:
+            rospy.logwarn_throttle(5, "Empty camera info published.")
 
     def _callback_ball(self, msg):
         if self.camera_info is None:
@@ -166,6 +174,23 @@ class TransformBall(object):
         pc_header = msg.header
         pc_header.frame_id = self.publish_frame
         self.line_relative_pc_pub.publish(pc2.create_cloud_xyz32(pc_header, points))
+
+    def _callback_non_line_field_points(self, msg):
+        if self.camera_info is None:
+            rospy.logerr("did not receive camerainfo")
+            return
+        points = []
+        field = self.get_plane(msg.header.stamp, 0, "base_footprint")
+        if field is None:
+            return
+        for seg in msg.segments:
+            transformed = self.transform(seg.start,field, msg.header.stamp)
+            if transformed is not None:
+                points.append([transformed.x, transformed.y, transformed.z])
+        pc_header = msg.header
+        pc_header.frame_id = self.publish_frame
+        self.line_relative_pc_pub.publish(pc2.create_cloud_xyz32(pc_header, points))
+
 
     def _callback_goal(self, msg):
         if self.camera_info is None:
